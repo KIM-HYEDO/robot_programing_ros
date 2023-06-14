@@ -1,0 +1,97 @@
+from roboid import *
+import roboidai as ai
+
+def ConnectBeagle():
+    beagle = Beagle()
+
+def ResetBeagle():
+    beagle.reset()
+
+def DisConnectBeagle():
+    beagle.dispose()
+
+def BuzzerControl(hz, bpm):
+    beagle.buzzer(hz)
+    beagle.tempo(bpm)
+
+def CameraDetection(list, cnt, pos):
+    while True:
+        image = cam.read()
+        if dt.detect(image):
+            image = dt.draw_result(image)
+            print(dt.get_label())
+    
+        cam.show(image)
+        if cam.check_key() == 'esc': break
+
+def LidarData():
+    beagle.start_lidar()
+    beagle.wait_until_lidar_ready()
+    print('lidar is ready')
+    beagle.lidar_chart()
+    wait(-1)
+
+def MoterControl(left_speed, right_speed, sec):
+    if (left_speed == 0 & right_speed == 0):
+            beagle.stop()
+    
+    elif (left_speed == 0):
+            beagle.pivot_left(sec,right_speed)
+    elif (right_speed == 0):
+            beagle.pivot_right(sec,right_speed)
+    
+    elif (left_speed > 0 & left_speed == -right_speed):
+            beagle.turn_right(sec,left_speed)
+    elif (left_speed < 0 & left_speed == -right_speed):
+            beagle.turn_left(sec,right_speed)
+    
+    elif (left_speed > 0) & (right_speed > 0):
+        if (left_speed == right_speed):
+            beagle.move_forward(sec,left_speed)
+        else:
+            beagle.wheels(left_speed, right_speed)
+            wait(0.003*sec)
+            beagle.stop()
+    elif (left_speed < 0) & (right_speed < 0):
+        if (left_speed == right_speed):
+            beagle.move_backward(sec,left_speed)
+        else:
+            beagle.wheels(left_speed, right_speed)
+            wait(0.003*sec)
+            beagle.stop()  
+    else:         
+        beagle.wheels(left_speed, right_speed)
+        wait(0.003*sec)
+        beagle.stop()
+
+def ServoControl(num, degree, speed):
+    if num == 1:
+        beagle.servo_output_a(degree)
+        beagle.servo_speed_a(speed)
+    elif num == 2:
+        beagle.servo_output_b(degree)
+        beagle.servo_speed_b(speed)
+    elif num == 3:
+        beagle.servo_output_c(degree)
+        beagle.servo_speed_c(speed)
+    
+    print('servo_a : ', beagle.servo_input_a(),
+          'servo_b : ', beagle.servo_input_b(),
+          'servo_c : ', beagle.servo_input_c(), sep="\n")
+
+
+cam = ai.Camera('usb0')
+dt = ai.ObjectDetector(multi=True, lang='ko')
+dt.download_model()
+dt.load_model()
+
+beagle = Beagle()
+
+#while True:
+
+beagle.move_forward()
+beagle.move_backward()
+beagle.turn_left()
+beagle.turn_right()
+
+dispose()
