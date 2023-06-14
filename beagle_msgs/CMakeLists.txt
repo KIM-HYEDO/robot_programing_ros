@@ -36,8 +36,9 @@ set(msg_files
   "msg/Rects.msg"
   "msg/ServoControl.msg"
 )
-# set(srv_files
-# )
+set(srv_files
+  "srv/RobotMoter.srv"
+)
 # set(action_files
 # )
 rosidl_generate_interfaces(${PROJECT_NAME}
