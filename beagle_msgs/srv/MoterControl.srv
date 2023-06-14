@@ -1,2 +1,4 @@
 int32 mode
 float32[] data
+---
+float32 endtime

@@ -1,10 +1,14 @@
 #include <cstdio>
-
+#include "../include/moter_control/moter_control_node.hpp"
 int main(int argc, char ** argv)
 {
-  (void) argc;
-  (void) argv;
+  rclcpp::init(argc, argv);
 
-  printf("hello world moter_control package\n");
+  auto motercontrol = std::make_shared<MoterControl>();
+
+  rclcpp::spin(motercontrol);
+
+  rclcpp::shutdown();
+
   return 0;
 }
