@@ -31,20 +31,20 @@ set(msg_files
   "msg/BuzzerControl.msg"
   "msg/CameraDetection.msg"
   "msg/LidarData.msg"
-  "msg/MoterControl.msg"
   "msg/Rect.msg"
   "msg/Rects.msg"
   "msg/ServoControl.msg"
 )
 set(srv_files
-  "srv/RobotMoter.srv"
+  "srv/RobotMotor.srv"
 )
-# set(action_files
-# )
+set(action_files
+  "action/MotorControl.action"
+)
 rosidl_generate_interfaces(${PROJECT_NAME}
   ${msg_files}
   ${srv_files}
-  # ${action_files}
+  ${action_files}
   DEPENDENCIES builtin_interfaces
 )
 
