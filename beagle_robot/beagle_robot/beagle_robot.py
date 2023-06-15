@@ -1,5 +1,7 @@
-from beagle_msgs.msg import BuzzerControl, LidarData, MoterControl, CameraDetection, ServoControl
+from beagle_msgs.msg import BuzzerControl, LidarData, MotorControl, CameraDetection, ServoControl
+from beagle_msgs.srv import RobotMotor
 from rcl_interfaces.msg import SetParametersResult
+import time
 import rclpy
 from rclpy.node import Node
 from rclpy.parameter import Parameter
@@ -15,10 +17,11 @@ class BeagleRobot(Node):
     def __init__(self):
         super().__init__('beagle_robot') # 노드 이름 저장
         self.beagle = Beagle()
+        self.timer = self.create_timer(1.0, self.timer_callback)  # 1초마다 타이머 콜백 함수 호출
         qos_profile = QoSProfile(depth=10) # 퍼블리시 할 데이터를 버퍼에 10개 저장
 
-        self.moter_go_publisher = self.create_publisher(
-            MoterControl, '/moter_control', qos_profile)
+        self.motor_go_publisher = self.create_publisher(
+            MotorControl, '/motor_control', qos_profile)
         self.buzzer_publisher = self.create_publisher(
             BuzzerControl, '/buzzer_control', qos_profile)
         self.servo_publisher = self.create_publisher(
@@ -33,8 +36,12 @@ class BeagleRobot(Node):
             CameraDetection,
             '/camera_detection',
             self.camera_callback,
+            qos_profile)    
+        self.encoder_subscriber = self.create_subscription(
+            MotorControl,
+            'motor_control',
+            self.encoder_callback,
             qos_profile)
-
 
     def ConnectBeagle(self):
         self.beagle = Beagle()
@@ -55,17 +62,26 @@ class BeagleRobot(Node):
         print('lidar is ready')
         self.beagle.lidar_chart()
         wait(-1)
+    
+    def encoder_callback(self,msg):
+        encoder_l = self.beagle.left_encoder()
+        encoder_r = self.beagle.right_encoder()
 
-    def MoterControl(self, moter_l, moter_r, sec):#request와 response의 형태로
-        self.beagle.wheels(moter_l, moter_r)
+    def MotorControl(self, request, response):#request와 response의 형태로
+        motor_l = request.motor_l
+        motor_r = request.motor_r
+        sec = request.sec
         
-        encoderl = self.beagle.left_encoder()
-        encoderr = self.beagle.right_encoder()
-        
-        responseL = 0#(requestL)
-        responseR = 0#(requestR)
-
+        self.beagle.wheels(motor_l, motor_r)
         wait(sec * 1000)
+
+        encoder_l = self.beagle.left_encoder()
+        encoder_r = self.beagle.right_encoder()
+        
+        response.encoder_l = encoder_l
+        response.encoder_r = encoder_r
+
+        return response
 
     def ServoControl(self, num, degree, speed):
         if num == 1:
@@ -78,6 +94,13 @@ class BeagleRobot(Node):
             self.beagle.servo_speed_c(speed)
             self.beagle.servo_output_c_until_done(degree)
 
+    def timer_callback(self):
+        self.Motor_Control()
+        self.motor_timer.cancel()
+    
+    def start_motor(self, motor_l, motorR, sec):
+        self.Motor_Control()
+        self.motor_timer = self.create_timer(sec, self.timer_callback)
 
 def main(args=None):
     rclpy.init(args=args) # 초기화
@@ -90,8 +113,10 @@ def main(args=None):
         node.destroy_node() # 노드 소멸
         rclpy.shutdown() # 함수 종료
 
+    subscription = node.
 
 if __name__ == '__main__':
     main()
+
 
 #서비스로 엔코더값 보내기
