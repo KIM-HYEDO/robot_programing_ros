@@ -36,15 +36,15 @@ set(msg_files
   "msg/ServoControl.msg"
 )
 set(srv_files
-  "srv/RobotMoter.srv"
-  "srv/MoterControl.srv"
+  "srv/RobotMotor.srv"
 )
-# set(action_files
-# )
+set(action_files
+  "action/MotorControl.action"
+)
 rosidl_generate_interfaces(${PROJECT_NAME}
   ${msg_files}
   ${srv_files}
-  # ${action_files}
+  ${action_files}
   DEPENDENCIES builtin_interfaces
 )
 

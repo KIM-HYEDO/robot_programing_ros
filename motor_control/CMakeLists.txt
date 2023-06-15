@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(moter_control)
+project(motor_control)
 
 # Default to C99
 if(NOT CMAKE_C_STANDARD)
@@ -19,18 +19,20 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(beagle_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_action REQUIRED)
 
-add_executable(moter_control src/moter_control.cpp src/moter_control_node.cpp)
-target_include_directories(moter_control PUBLIC
+add_executable(motor_control src/motor_control.cpp src/motor_control_node.cpp)
+target_include_directories(motor_control PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
 ament_target_dependencies(
-  moter_control
-  "beagle_msgs"
-  "rclcpp"
+  motor_control
+  beagle_msgs
+  rclcpp
+  rclcpp_action
 )
 
-install(TARGETS moter_control
+install(TARGETS motor_control
   DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)
