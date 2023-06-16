@@ -10,9 +10,6 @@
 #include "rclcpp_action/rclcpp_action.hpp"
 
 #define PI 3.141592
-#define WHEEL_BASE 90.0
-#define WHEEL_RADIAN 65.0
-#define TURN_PULSE 1900.0
 
 class MotorControl : public rclcpp::Node {
 public:
@@ -24,6 +21,8 @@ public:
   ~MotorControl();
   void run();
 private:
+  const float WHEEL_BASE,WHEEL_RADIAN;
+  const int TURN_PULSE;
   template <class T> T limit(T value, T limit = 100);
   rclcpp::Node::SharedPtr node;
   float motor_r_,motor_l_;

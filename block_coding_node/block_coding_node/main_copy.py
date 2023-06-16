@@ -49,9 +49,11 @@ class CodingNode(Node):
 
         # code_end
         #stop
-        if self.send_goal_motor_control(0, (-10,-10)):
+        if self.send_goal_motor_control(0, (0,0)):
             while self.end_time is None:
                 rclpy.spin_once(self)
+                self.cancel_motor_control()
+                break
             self.end_time = None
 
     def lidar_callback(self, lidar_msg):

@@ -4,9 +4,20 @@ using namespace std::chrono_literals;
 
 MotorControl::MotorControl()
     : Node("motor_control"), encoder_l_(0), encoder_r_(0), node(this),
-      action_seq_(0), motor_l_(0), motor_r_(0) {
-  auto qos_profile = rclcpp::QoS(rclcpp::KeepLast(10));
+      action_seq_(0), motor_l_(0), motor_r_(0), WHEEL_BASE(90.0),
+      WHEEL_RADIAN(65.0), TURN_PULSE(1900) {
 
+  this->declare_parameter("wheel_base", 90.0);
+  *((float *)&WHEEL_BASE) =
+      this->get_parameter("wheel_base").get_value<float>();
+  this->declare_parameter("wheel_radian", 65.0);
+  *((float *)&WHEEL_RADIAN) =
+      this->get_parameter("wheel_radian").get_value<float>();
+  this->declare_parameter("turn_pulse", 1900);
+  *((int *)&TURN_PULSE) = this->get_parameter("turn_pulse").get_value<int>();
+
+
+  auto qos_profile = rclcpp::QoS(rclcpp::KeepLast(10));
   robot_motor_client_ = this->create_client<robot_motor>("/robot_motor");
   while (!robot_motor_client_->wait_for_service(1s)) {
     if (!rclcpp::ok()) {
@@ -36,7 +47,22 @@ MotorControl::handle_goal(const rclcpp_action::GoalUUID &uuid,
 rclcpp_action::CancelResponse MotorControl::handle_cancel(
     const std::shared_ptr<goal_handle_motor_control> goal_handle) {
   action_seq_ = 0;
-  // goal_handle_.reset();
+  {
+    auto robot_req = std::make_shared<robot_motor::Request>();
+    robot_req->motor_l = 0;
+    robot_req->motor_r = 0;
+    auto result = robot_motor_client_->async_send_request(robot_req);
+    // Wait for the result.
+    if (rclcpp::spin_until_future_complete(node, result) ==
+        rclcpp::FutureReturnCode::SUCCESS) {
+      encoder_l_ = result.get()->encoder_l;
+      encoder_r_ = result.get()->encoder_r;
+    } else {
+      RCLCPP_WARN(this->get_logger(),
+                  "robot motor service failed\ncheck beagle_robot node");
+      return rclcpp_action::CancelResponse::ACCEPT;
+    }
+  }
   RCLCPP_WARN(this->get_logger(), "cancel goal");
   return rclcpp_action::CancelResponse::ACCEPT;
 }
@@ -52,8 +78,8 @@ void MotorControl::run() {
   case 1: {
     {
       auto robot_req = std::make_shared<robot_motor::Request>();
-      robot_req->motor_l = motor_l_;
-      robot_req->motor_r = motor_r_;
+      robot_req->motor_l = 0;
+      robot_req->motor_r = 0;
       auto result = robot_motor_client_->async_send_request(robot_req);
       // Wait for the result.
       if (rclcpp::spin_until_future_complete(node, result) ==
@@ -81,17 +107,18 @@ void MotorControl::run() {
     }
     case 4: {
       target_encoder_l_ =
-          encoder_l_ + (((motor_data[1] / 360.0) * (WHEEL_BASE / 2.0)) /
-                        (WHEEL_RADIAN * 2.0 * PI)) *
-                           TURN_PULSE;
+          encoder_l_ +
+          (((motor_data[1] / 360.0) * (WHEEL_BASE)) / (WHEEL_RADIAN)) *
+              TURN_PULSE;
       target_encoder_r_ =
-          encoder_r_ - (((motor_data[1] / 360.0) * (WHEEL_BASE / 2.0)) /
-                        (WHEEL_RADIAN * 2.0 * PI)) *
-                           TURN_PULSE;
+          encoder_r_ -
+          (((motor_data[1] / 360.0) * (WHEEL_BASE)) / (WHEEL_RADIAN)) *
+              TURN_PULSE;
       break;
     }
     }
     action_seq_ = 2;
+    start_ = std::chrono::system_clock::now();
     break;
   }
   case 2: {
@@ -99,7 +126,7 @@ void MotorControl::run() {
     break;
   }
   case 3: {
-    if (goal_handle_->get_goal()->mode) {
+    {
       auto robot_req = std::make_shared<robot_motor::Request>();
       robot_req->motor_l = 0;
       robot_req->motor_r = 0;
@@ -130,6 +157,11 @@ void MotorControl::run() {
 }
 void MotorControl::control() {
 
+  std::chrono::milliseconds a =
+      std::chrono::duration_cast<std::chrono::milliseconds>(
+          std::chrono::system_clock::now() - start_);
+
+  RCLCPP_WARN(this->get_logger(), "%d", a.count());
   int motor_mode = goal_handle_->get_goal()->mode;
   std::vector<float> motor_data = goal_handle_->get_goal()->data;
   auto robot_req = std::make_shared<robot_motor::Request>();
@@ -145,7 +177,10 @@ void MotorControl::control() {
     std::chrono::milliseconds time =
         std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::system_clock::now() - start_);
+
+    // RCLCPP_WARN(this->get_logger(), "%d", time.count());
     action_seq_ = (time.count() / 1000.0 > motor_data[2]) ? 3 : 2;
+
     break;
   }
   case 2: {
@@ -186,6 +221,8 @@ void MotorControl::control() {
   motor_l_ = robot_req->motor_l;
   motor_r_ = robot_req->motor_r;
   auto result = robot_motor_client_->async_send_request(robot_req);
+
+  RCLCPP_WARN(this->get_logger(), "a");
   // Wait for the result.
   if (rclcpp::spin_until_future_complete(node, result) ==
       rclcpp::FutureReturnCode::SUCCESS) {
@@ -196,6 +233,8 @@ void MotorControl::control() {
                 "robot motor service failed\ncheck beagle_robot node");
     return;
   }
+  RCLCPP_WARN(this->get_logger(), "b");
+
   auto feedback = std::make_shared<motor_control::Feedback>();
   feedback->encoder_l = encoder_l_;
   feedback->encoder_r = encoder_r_;

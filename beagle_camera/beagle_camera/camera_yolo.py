@@ -11,7 +11,7 @@ class camera_yolo(Node):
         super().__init__('camera_yolo')
         qos_profile = QoSProfile(depth=10)
         self.helloworld_publisher = self.create_publisher(
-            CameraDetection, '/camera_yolo', qos_profile)
+            CameraDetection, '/camera_detection', qos_profile)
         self.timer = self.create_timer(0.1, self.publish_camera_yolo)
         self.count = 0
         self.cam = ai.Camera('ip0')
