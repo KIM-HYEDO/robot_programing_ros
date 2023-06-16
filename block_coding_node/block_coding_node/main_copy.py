@@ -46,16 +46,9 @@ class CodingNode(Node):
 
     def block_code(self):
         # code_start
-        if self.send_goal_motor_control(0, (10, 10)):
-            while self.end_time is None:
-                rclpy.spin_once(self)
-                print(self.encoder_l, self.encoder_r)
-                if self.encoder_l > 300:
-                    self.cancel_motor_control()
-                    break
-            self.end_time = None
-        pass
+
         # code_end
+        #stop
         if self.send_goal_motor_control(0, (-10,-10)):
             while self.end_time is None:
                 rclpy.spin_once(self)
