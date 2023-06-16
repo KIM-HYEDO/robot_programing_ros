@@ -3,3 +3,4 @@
     wheel_base: 90.0
     wheel_radian: 65.0
     turn_pulse: 1900
+    lidar_use: True

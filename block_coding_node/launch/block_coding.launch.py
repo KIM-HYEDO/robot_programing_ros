@@ -14,17 +14,11 @@ def generate_launch_description():
             get_package_share_directory('block_coding_node'),
             'param',
             'param.yaml'))
-
-    lindarmode_arg = DeclareLaunchArgument(
-        'lidar_mode',
-        default_value='raw'
-    )
     return LaunchDescription([
         DeclareLaunchArgument(
             'param_dir',
             default_value=param_dir,
             description='Full path of parameter file'),
-
         Node(
             package='block_coding_node',
             executable='coding_node',
@@ -43,7 +37,6 @@ def generate_launch_description():
             executable='beagle_robot',
             name='beagle_robot',
             parameters=[param_dir],
-            arguments=[lindarmode_arg],
             output='screen'),
         Node(
             package='beagle_camera',

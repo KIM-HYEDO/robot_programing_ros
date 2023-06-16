@@ -17,34 +17,20 @@ from roboid import *
 
 class BeagleRobot(Node):
 
-    def __init__(self, argv):
+    def __init__(self):
         super().__init__('beagle_robot')  # 노드 이름 저장
         self.beagle = Beagle()
         qos_profile = QoSProfile(depth=10)  # 퍼블리시 할 데이터를 버퍼에 10개 저장
 
-        parser = argparse.ArgumentParser(
-            formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-        parser.add_argument(
-            '-L',
-            '--lidar_mode',
-            type=str,
-            default="raw",
-            help='lidar mode set (raw, zero,trunc)')
-        args = parser.parse_args()
-        self.lidar_mode=args.lidar_mode
 
         self.declare_parameter('lidar_use', False)  # lidar 사용할 경우에만 퍼블리시
-        self.lidar_use=self.get_parameter('lidar_use')
+        self.lidar_use = self.get_parameter('lidar_use').value
         if self.lidar_use:
             self.lidar_publisher = self.create_publisher(
                 LidarData, '/lidar_data', qos_profile)
             self.beagle.start_lidar()
             self.beagle.wait_until_lidar_ready()
-            self.lidar_pub_timer=self.create_timer(0.1, self.lidar_pub)
-            if self.lidar_mode=="zero" or self.lidar_mode=="trunc":
-                self.beagle.lidar_mode(self.lidar_mode)
-            else:
-                self.beagle.lidar_mode("raw")
+            self.lidar_pub_timer = self.create_timer(0.1, self.lidar_pub)
         self.add_on_set_parameters_callback(self.param_callback)
         self.callback_group = ReentrantCallbackGroup()
 
@@ -58,26 +44,33 @@ class BeagleRobot(Node):
             '/servo_control',
             self.ServoControl,  # servo_callback,
             qos_profile)
+        self.lidar_publisher = self.create_publisher(
+            LidarData, '/lidar_data', qos_profile)
 
         self.encoder_srv = self.create_service(
             RobotMotor, '/robot_motor', self.encoder_callback,
             callback_group=self.callback_group)
-    def param_callback(self):
-        pre_lidar_use=self.lidar_use
-        self.lidar_use=self.get_parameter('lidar_use')
-        if not pre_lidar_use and self.lidar_use:
-            self.lidar_publisher = self.create_publisher(
-                LidarData, '/lidar_data', qos_profile)
-            self.beagle.start_lidar()
-            self.beagle.wait_until_lidar_ready()
-            self.lidar_pub_timer=self.create_timer(0.1, self.lidar_pub)
-            if self.lidar_mode=="zero" or self.lidar_mode=="trunc":
-                self.beagle.lidar_mode(self.lidar_mode)
-            else:
-                self.beagle.lidar_mode("raw")
-        elif pre_lidar_use and not self.lidar_mode:
-            self.lidar_pub_timer.cancel()
-            self.beagle.stop_lidar()
+
+    def set_lidar_mode(self, mode):
+        if mode == "zero" or mode == "trunc":
+            self.beagle.lidar_mode(mode)
+        else:
+            self.beagle.lidar_mode("raw")
+
+    def param_callback(self, params):
+        for param in params:
+            if param.name == 'lidar_use':
+                pre_lidar_use = self.lidar_use
+                self.lidar_use = param.value
+                if not pre_lidar_use and self.lidar_use:
+                    self.beagle.start_lidar()
+                    self.beagle.wait_until_lidar_ready()
+                    self.lidar_pub_timer = self.create_timer(
+                        0.1, self.lidar_pub)
+                elif pre_lidar_use and not self.lidar_mode:
+                    self.lidar_pub_timer.cancel()
+                    self.beagle.stop_lidar()
+        return SetParametersResult(successful=True)
 
     def ConnectBeagle(self):
         self.beagle = Beagle()
@@ -139,13 +132,25 @@ class BeagleRobot(Node):
 
     def lidar_pub(self):
         msg = LidarData()
-        msg.data = self.beagle.lidar()
+        msg.data = list(map(float, self.beagle.lidar()))
         self.lidar_publisher.publish(msg)
 
 
-def main(args=sys.argv[1:]):
-    rclpy.init(args=args)  # 초기화
-    node = BeagleRobot(args=args)
+def main(argv=sys.argv[1:]):
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('-L', '--lidar_mode', type=str,
+                        default="raw", help='lidar mode set (raw, zero, trunc)')
+    parser.add_argument('argv', nargs=argparse.REMAINDER,
+                        help='Pass arbitrary arguments to the executable')
+    # args = parser.parse_args()
+    args, unknown = parser.parse_known_args()
+    print(args)
+    print(unknown)
+    rclpy.init(args=argv)  # 초기화
+
+    node = BeagleRobot()
+    node.set_lidar_mode(args.lidar_mode)
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
