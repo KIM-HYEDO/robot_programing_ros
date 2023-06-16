@@ -1,7 +1,11 @@
 
-from beagle_msgs.msg import BuzzerControl, LidarData, MoterControl, CameraDetection, ServoControl
+from beagle_msgs.msg import BuzzerControl, LidarData,  CameraDetection, ServoControl
+from beagle_msgs.action import MotorControl
 from rcl_interfaces.msg import SetParametersResult
 import rclpy
+from action_msgs.msg import GoalStatus
+from rclpy.action import ActionClient
+from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.node import Node
 from rclpy.parameter import Parameter
 from rclpy.qos import QoSDurabilityPolicy
@@ -14,9 +18,14 @@ class CodingNode(Node):
 
     def __init__(self):
         super().__init__('coding_node')
+        self.callback_group = ReentrantCallbackGroup()
         qos_profile = QoSProfile(depth=10)
-        self.moter_go_publisher = self.create_publisher(
-            MoterControl, '/moter_control', qos_profile)
+        self.motor_control_client = ActionClient(
+            self,
+            MotorControl,
+            '/motor_control',callback_group=self.callback_group)
+        while not self.motor_control_client.wait_for_server(timeout_sec=1):
+            self.get_logger().warning('wait open motor control node')
         self.buzzer_publisher = self.create_publisher(
             BuzzerControl, '/buzzer_control', qos_profile)
         self.servo_publisher = self.create_publisher(
@@ -31,52 +40,26 @@ class CodingNode(Node):
             '/camera_detection',
             self.camera_callback,
             qos_profile)
+        self.encoder_l = 0.0
+        self.encoder_r = 0.0
+        self.end_time = None
 
     def block_code(self):
-        #code_start
-        #middle_code_start
-        msg = MoterControl()
-        msg.mode = 0
-        msg.data.append(10)
-        msg.data.append(10)
-        self.moter_go_publisher.publish(msg)
-        msg = MoterControl()
-        msg.mode = 1
-        msg.data.append(10)
-        msg.data.append(10)
-        msg.data.append(10)
-        self.moter_go_publisher.publish(msg)
-        msg = MoterControl()
-        msg.mode = 2
-        msg.data.append(10)
-        msg.data.append(10)
-        self.moter_go_publisher.publish(msg)
-        msg = MoterControl()
-        msg.mode = 3
-        msg.data.append(10)
-        msg.data.append(10)
-        self.moter_go_publisher.publish(msg)
-        msg = MoterControl()
-        msg.mode = 4
-        msg.data.append(10)
-        msg.data.append(10)
-        self.moter_go_publisher.publish(msg)
-        msg = ServoControl()
-        msg.num = 1
-        msg.data.append(0)
-        self.servo_publisher.publish(msg)
-        msg = ServoControl()
-        msg.num = 1
-        msg.data.append(0)
-        msg.data.append(0)
-        self.servo_publisher.publish(msg)
-        msg = BuzzerControl()
-        msg.data.append(0)
-        msg.data.append(0)
-        self.buzzer_publisher.publish(msg)
-        rclpy.spin_once(self,timeout_sec=0.1)
-        #middle_code_end
-        #code_end
+        # code_start
+        if self.send_goal_motor_control(0, (10, 10)):
+            while self.end_time is None:
+                rclpy.spin_once(self)
+                if self.encoder_l > 300:
+                    self.cancel_motor_control()
+                    break
+            self.end_time = None
+        pass
+        # code_end
+        #stop
+        if self.send_goal_motor_control(0, (-10,-10)):
+            while self.end_time is None:
+                rclpy.spin_once(self)
+            self.end_time = None
 
     def lidar_callback(self, lidar_msg):
         print('lidar')
@@ -85,13 +68,70 @@ class CodingNode(Node):
     def camera_callback(self, camera_msg):
         print('camera')
         self.camera = []
-        i=0
+        i = 0
         for rects in camera_msg.rects:
             self.camera.append([])
             for rect in rects.rect:
                 self.camera[i].append(rect.data)
-            i+=1
+            i += 1
 
+    def cancel_motor_control(self):
+        self.action_result_future.cancel()
+        future_ = self.goal_handle.cancel_goal_async()
+        future_.add_done_callback(self.goal_canceled_callback)
+        rclpy.spin_until_future_complete(self,future_)
+
+    def goal_canceled_callback(self, future):
+        cancel_response = future.result()
+        if len(cancel_response.goals_canceling) > 0:
+            self.get_logger().info('Cancelling of goal complete')
+            self.cancel_complate = True
+        else:
+            self.get_logger().warning('Goal failed to cancel')
+
+    def send_goal_motor_control(self, mode, data):
+        wait_count = 1
+        while not self.motor_control_client.wait_for_server(timeout_sec=0.1):
+            if wait_count > 3:
+                self.get_logger().warning('motor control action server is not available.')
+                return False
+            wait_count += 1
+        goal_msg = MotorControl.Goal()
+        goal_msg.mode = mode
+        goal_msg.data = tuple(map(float, data))
+        self.send_goal_future = self.motor_control_client.send_goal_async(
+            goal_msg,
+            feedback_callback=self.motor_control_action_feedback)
+        self.send_goal_future.add_done_callback(
+            self.motor_control_action_goal)
+        return True
+
+    def motor_control_action_goal(self, future):
+        self.goal_handle = future.result()
+        if not self.goal_handle.accepted:
+            self.get_logger().warning('Action goal rejected.')
+            self.goal_handle = None  # 파괴된 핸들을 None으로 설정
+            return
+        self.get_logger().info('Action goal accepted.')
+        self.action_result_future = self.goal_handle.get_result_async()
+        self.action_result_future.add_done_callback(
+            self.motor_control_action_result)
+
+    def motor_control_action_feedback(self, feedback_msg):
+        self.encoder_l = feedback_msg.feedback.encoder_l
+        self.encoder_r = feedback_msg.feedback.encoder_r
+
+    def motor_control_action_result(self, future):
+        if future.cancelled():
+            self.get_logger().info('future')
+            return
+        action_status = future.result().status
+        self.end_time = future.result().result.end_time
+        if action_status == GoalStatus.STATUS_SUCCEEDED:
+            self.get_logger().info('Action succeeded!')
+        else:
+            self.get_logger().warning(
+                'Action failed with status: {0}'.format(action_status))
 
 
 def main(args=None):
