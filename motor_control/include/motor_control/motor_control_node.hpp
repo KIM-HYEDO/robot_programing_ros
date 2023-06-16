@@ -22,11 +22,13 @@ public:
       rclcpp_action::ServerGoalHandle<motor_control>;
   MotorControl();
   ~MotorControl();
-
+  void run();
 private:
   template <class T> T limit(T value, T limit = 100);
   rclcpp::Node::SharedPtr node;
-  float encoder_l, encoder_r;
+  float motor_r_,motor_l_;
+  float target_encoder_l_, target_encoder_r_;
+  float encoder_l_, encoder_r_;
   rclcpp::Client<robot_motor>::SharedPtr robot_motor_client_;
 
   rclcpp_action::GoalResponse
@@ -36,8 +38,12 @@ private:
   handle_cancel(const std::shared_ptr<goal_handle_motor_control> goal_handle);
   void motor_controling(
       const std::shared_ptr<goal_handle_motor_control> goal_handle);
+  void control();
 
   rclcpp_action::Server<motor_control>::SharedPtr motor_control_action_server_;
+  int action_seq_;
+  std::shared_ptr<goal_handle_motor_control> goal_handle_;
+  std::chrono::system_clock::time_point start_;
 };
 
 #endif

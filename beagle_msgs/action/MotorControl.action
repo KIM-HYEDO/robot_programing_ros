@@ -1,8 +1,8 @@
 int32 mode
 float32[] data
 ---
-float32 endtime
+float32 end_time
 ---
-float32 encoder_l
-float32 encoder_r
+int32 encoder_l
+int32 encoder_r
 float32 time

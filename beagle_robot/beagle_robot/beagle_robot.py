@@ -1,4 +1,4 @@
-from beagle_msgs.msg import BuzzerControl, LidarData, MotorControl, CameraDetection, ServoControl
+from beagle_msgs.msg import BuzzerControl, LidarData,  CameraDetection, ServoControl
 from beagle_msgs.srv import RobotMotor
 from rcl_interfaces.msg import SetParametersResult
 import rclpy
@@ -9,37 +9,43 @@ from rclpy.qos import QoSHistoryPolicy
 from rclpy.qos import QoSProfile
 from rclpy.qos import QoSReliabilityPolicy
 from rclpy.executors import MultiThreadedExecutor
+from rclpy.callback_groups import ReentrantCallbackGroup
 from roboid import *
 
 
 class BeagleRobot(Node):
 
     def __init__(self):
-        super().__init__('beagle_robot') # 노드 이름 저장
+        super().__init__('beagle_robot')  # 노드 이름 저장
         self.beagle = Beagle()
-        qos_profile = QoSProfile(depth=10) # 퍼블리시 할 데이터를 버퍼에 10개 저장
-       
+        qos_profile = QoSProfile(depth=10)  # 퍼블리시 할 데이터를 버퍼에 10개 저장
+
+        self.callback_group = ReentrantCallbackGroup()
         self.lidar_publisher = self.create_publisher(
             LidarData, '/lidar_data', qos_profile)
 
         self.buzzer_subscriber = self.create_subscription(
             BuzzerControl,
-            'buzzer_control',
-            self.BuzzerControl,#buzzer_callback,
+            '/buzzer_control',
+            self.BuzzerControl,  # buzzer_callback,
             qos_profile)
         self.servo_subscriber = self.create_subscription(
             ServoControl,
-            'servo_control',
-            self.ServoControl,#servo_callback,
+            '/servo_control',
+            self.ServoControl,  # servo_callback,
             qos_profile)
-        
+
         self.encoder_srv = self.create_service(
-            RobotMotor, '/encoder_callback', self.encoder_callback)        
+            RobotMotor, '/robot_motor', self.encoder_callback,
+            callback_group=self.callback_group)
+
 
     def ConnectBeagle(self):
         self.beagle = Beagle()
+
     def ResetBeagle(self):
         self.beagle.reset()
+
     def DisConnectBeagle(self):
         self.beagle.dispose()
 
@@ -48,7 +54,7 @@ class BeagleRobot(Node):
         self.beagle.wait_until_lidar_ready()
         print('lidar is ready')
         self.beagle.lidar_chart()
-        wait(-1)    
+        wait(-1)
 
     def BuzzerControl(self, msg):
         if len(msg.data) >= 2:
@@ -78,17 +84,15 @@ class BeagleRobot(Node):
             if len(msg.data) >= 2:
                 self.beagle.servo_speed_c(msg.data[1])
             else:
-                self.beagle.servo_speed_c(5)                
+                self.beagle.servo_speed_c(5)
 
     def encoder_callback(self, request, response):
+        self.beagle.wheels(request.motor_l, request.motor_r)
         response.encoder_l = self.beagle.left_encoder()
         response.encoder_r = self.beagle.right_encoder()
-        self.get_logger().info('Incoming request\na: %d b: %d' 
-        % (response.encoder_l, response.encoder_r))
-
         return response
 
-    def MotorControl(self, request, response):#request와 response의 형태로
+    def MotorControl(self, request, response):  # request와 response의 형태로
         motor_l = request.motor_l
         motor_r = request.motor_r
         self.beagle.wheels(motor_l, motor_r)
@@ -104,16 +108,17 @@ class BeagleRobot(Node):
             self.beagle.servo_speed_c(speed)
             self.beagle.servo_output_c_until_done(degree)
 
+
 def main(args=None):
-    rclpy.init(args=args) # 초기화
+    rclpy.init(args=args)  # 초기화
     node = BeagleRobot()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
         node.get_logger().info('Keyboard Interrupt (SIGINT)')
     finally:
-        node.destroy_node() # 노드 소멸
-        rclpy.shutdown() # 함수 종료
+        node.destroy_node()  # 노드 소멸
+        rclpy.shutdown()  # 함수 종료
 
 
 if __name__ == '__main__':

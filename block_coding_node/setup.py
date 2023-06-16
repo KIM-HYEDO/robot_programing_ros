@@ -20,7 +20,7 @@ setup(
     license='TODO: License declaration',
     tests_require=['pytest'],
     entry_points={
-        'console_scripts': ['coding_node = block_coding_node.coding_node.main:main',
+        'console_scripts': ['coding_node = block_coding_node.main_copy:main',
         ],
     },
 )
