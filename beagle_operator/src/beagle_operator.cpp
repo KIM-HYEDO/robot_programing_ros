@@ -1,4 +1,4 @@
-#include "beagle_operator/beagle_operator.hpp"
+#include "../include/beagle_operator/beagle_operator.hpp"
 
 using namespace std::chrono_literals;
 
@@ -8,7 +8,7 @@ BeagleOperator::BeagleOperator(const rclcpp::NodeOptions & node_options)
     // Node 생성자에서 수행할 작업을 추가하세요.
 
     //Publisherac
-    pub_Forward = this->create_publisher<beagle_msgs::msg::Forward>("toBeagle", 10);
+    // pub_Forward = this->create_publisher<beagle_msgs::msg::Forward>("toBeagle", 10);
 
     //Subscriber
     sub_Forward = this->create_subscription<std_msgs::msg::Bool>(
