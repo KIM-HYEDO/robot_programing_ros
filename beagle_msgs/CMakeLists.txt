@@ -37,6 +37,7 @@ set(msg_files
 )
 set(srv_files
   "srv/RobotMotor.srv"
+  "srv/ConnectChecker.srv"
 )
 set(action_files
   "action/MotorControl.action"

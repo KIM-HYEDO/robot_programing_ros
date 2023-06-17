@@ -1,0 +1,3 @@
+bool try_connect
+---
+bool connected
