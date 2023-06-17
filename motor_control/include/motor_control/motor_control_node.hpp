@@ -25,9 +25,9 @@ private:
   const int TURN_PULSE;
   template <class T> T limit(T value, T limit = 100);
   rclcpp::Node::SharedPtr node;
-  float motor_r_,motor_l_;
-  float target_encoder_l_, target_encoder_r_;
-  float encoder_l_, encoder_r_;
+  int motor_r_,motor_l_;
+  int target_encoder_r_, target_encoder_l_;
+  int encoder_r_, encoder_l_;
   rclcpp::Client<robot_motor>::SharedPtr robot_motor_client_;
 
   rclcpp_action::GoalResponse
@@ -35,7 +35,7 @@ private:
               std::shared_ptr<const motor_control::Goal> goal);
   rclcpp_action::CancelResponse
   handle_cancel(const std::shared_ptr<goal_handle_motor_control> goal_handle);
-  void motor_controling(
+  void motor_controlling(
       const std::shared_ptr<goal_handle_motor_control> goal_handle);
   void control();
 

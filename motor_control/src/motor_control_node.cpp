@@ -3,9 +3,10 @@
 using namespace std::chrono_literals;
 
 MotorControl::MotorControl()
-    : Node("motor_control"), encoder_l_(0), encoder_r_(0), node(this),
-      action_seq_(0), motor_l_(0), motor_r_(0), WHEEL_BASE(90.0),
-      WHEEL_RADIAN(65.0), TURN_PULSE(1900) {
+    : Node("motor_control"), WHEEL_BASE(90.0), WHEEL_RADIAN(65.0),
+      TURN_PULSE(1900), node(this), motor_r_(0), motor_l_(0),
+      target_encoder_r_(0), target_encoder_l_(0), encoder_r_(0), encoder_l_(0),
+      action_seq_(0) {
 
   this->declare_parameter("wheel_base", 90.0);
   *((float *)&WHEEL_BASE) =
@@ -16,7 +17,6 @@ MotorControl::MotorControl()
   this->declare_parameter("turn_pulse", 1900);
   *((int *)&TURN_PULSE) = this->get_parameter("turn_pulse").get_value<int>();
 
-  auto qos_profile = rclcpp::QoS(rclcpp::KeepLast(10));
   robot_motor_client_ = this->create_client<robot_motor>("/robot_motor");
   while (!robot_motor_client_->wait_for_service(1s)) {
     if (!rclcpp::ok()) {
@@ -33,7 +33,7 @@ MotorControl::MotorControl()
       this->get_node_logging_interface(), this->get_node_waitables_interface(),
       "/motor_control", std::bind(&MotorControl::handle_goal, this, _1, _2),
       std::bind(&MotorControl::handle_cancel, this, _1),
-      std::bind(&MotorControl::motor_controling, this, _1));
+      std::bind(&MotorControl::motor_controlling, this, _1));
 }
 MotorControl::~MotorControl() {}
 
@@ -41,10 +41,13 @@ rclcpp_action::GoalResponse
 MotorControl::handle_goal(const rclcpp_action::GoalUUID &uuid,
                           std::shared_ptr<const motor_control::Goal> goal) {
   // RCLCPP_WARN(this->get_logger(), "new goal");
+  (void)uuid;
+  (void)goal;
   return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
 }
 rclcpp_action::CancelResponse MotorControl::handle_cancel(
     const std::shared_ptr<goal_handle_motor_control> goal_handle) {
+  (void)goal_handle;
   action_seq_ = 0;
   {
     auto robot_req = std::make_shared<robot_motor::Request>();
@@ -65,7 +68,7 @@ rclcpp_action::CancelResponse MotorControl::handle_cancel(
   // RCLCPP_WARN(this->get_logger(), "cancel goal");
   return rclcpp_action::CancelResponse::ACCEPT;
 }
-void MotorControl::motor_controling(
+void MotorControl::motor_controlling(
     const std::shared_ptr<goal_handle_motor_control> goal_handle) {
   // RCLCPP_WARN(this->get_logger(), "start goal");
   goal_handle_ = goal_handle;
@@ -155,9 +158,6 @@ void MotorControl::run() {
 }
 void MotorControl::control() {
 
-  std::chrono::milliseconds a =
-      std::chrono::duration_cast<std::chrono::milliseconds>(
-          std::chrono::system_clock::now() - start_);
 
   int motor_mode = goal_handle_->get_goal()->mode;
   std::vector<float> motor_data = goal_handle_->get_goal()->data;
