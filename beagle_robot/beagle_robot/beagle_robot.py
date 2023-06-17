@@ -1,5 +1,5 @@
 from beagle_msgs.msg import BuzzerControl, LidarData,  CameraDetection, ServoControl
-from beagle_msgs.srv import RobotMotor
+from beagle_msgs.srv import RobotMotor, ConnectChecker
 from rcl_interfaces.msg import SetParametersResult
 import rclpy
 import sys
@@ -19,9 +19,15 @@ class BeagleRobot(Node):
 
     def __init__(self):
         super().__init__('beagle_robot')  # 노드 이름 저장
-        self.beagle = Beagle()
-        qos_profile = QoSProfile(depth=10)  # 퍼블리시 할 데이터를 버퍼에 10개 저장
 
+        while True:
+            if self.beagle_check():
+                break
+            else:
+                self.get_logger().warning('check connect beagle')
+                wait(1000)
+
+        qos_profile = QoSProfile(depth=10)  # 퍼블리시 할 데이터를 버퍼에 10개 저장
 
         self.declare_parameter('lidar_use', False)  # lidar 사용할 경우에만 퍼블리시
         self.lidar_use = self.get_parameter('lidar_use').value
@@ -50,6 +56,8 @@ class BeagleRobot(Node):
         self.encoder_srv = self.create_service(
             RobotMotor, '/robot_motor', self.encoder_callback,
             callback_group=self.callback_group)
+        self.service_connect_checker = self.create_service(
+            ConnectChecker, '/connect_checker', self.checkConnection)
 
     def set_lidar_mode(self, mode):
         if mode == "zero" or mode == "trunc":
@@ -75,6 +83,20 @@ class BeagleRobot(Node):
     def ConnectBeagle(self):
         self.beagle = Beagle()
 
+    def checkConnection(self, req, res):  # 비글 연결 됐는지 확인
+        if req.try_connect:
+            res.connected = self.beagle_check()
+            return res
+        res.connected = False
+        return res
+    def beagle_check(self):
+        self.beagle = Beagle()
+        num = self.beagle.timestamp_basic()
+        if num == 0:
+            return False
+        else:
+            return True
+
     def ResetBeagle(self):
         self.beagle.reset()
 
@@ -84,7 +106,6 @@ class BeagleRobot(Node):
     def LidarData(self):
         self.beagle.start_lidar()
         self.beagle.wait_until_lidar_ready()
-        print('lidar is ready')
         self.beagle.lidar_chart()
         wait(-1)
 
@@ -141,12 +162,7 @@ def main(argv=sys.argv[1:]):
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-L', '--lidar_mode', type=str,
                         default="raw", help='lidar mode set (raw, zero, trunc)')
-    parser.add_argument('argv', nargs=argparse.REMAINDER,
-                        help='Pass arbitrary arguments to the executable')
-    # args = parser.parse_args()
     args, unknown = parser.parse_known_args()
-    print(args)
-    print(unknown)
     rclpy.init(args=argv)  # 초기화
 
     node = BeagleRobot()

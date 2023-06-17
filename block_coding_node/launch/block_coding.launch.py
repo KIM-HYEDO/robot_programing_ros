@@ -14,11 +14,19 @@ def generate_launch_description():
             get_package_share_directory('block_coding_node'),
             'param',
             'param.yaml'))
+    lidar_use = LaunchConfiguration(
+        'lidar_use',
+        default=True,)
+    print(lidar_use)
     return LaunchDescription([
         DeclareLaunchArgument(
             'param_dir',
             default_value=param_dir,
             description='Full path of parameter file'),
+        DeclareLaunchArgument(
+            'lidar_use',
+            default_value=lidar_use,
+            description='Whether to use lidar'),
         Node(
             package='block_coding_node',
             executable='coding_node',
@@ -36,7 +44,8 @@ def generate_launch_description():
             package='beagle_robot',
             executable='beagle_robot',
             name='beagle_robot',
-            parameters=[param_dir],
+            parameters=[param_dir,{'lidar_use': LaunchConfiguration('lidar_use')}],
+            arguments=["-L", "raw"],
             output='screen'),
         Node(
             package='beagle_camera',
