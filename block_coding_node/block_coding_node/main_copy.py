@@ -19,6 +19,7 @@ class CodingNode(Node):
 
     def __init__(self):
         super().__init__('coding_node')
+        self.lidar_data=[0 for i in range(360)]
         self.callback_group = ReentrantCallbackGroup()
         qos_profile = QoSProfile(depth=10)
 
@@ -33,7 +34,7 @@ class CodingNode(Node):
         #비글 로봇 체커 노드
         self.connect_check_cli = self.create_client(
             ConnectChecker, "/connect_checker")
-        while not self.connect_check_cli.wait_for_server(timeout_sec=1):
+        while not self.connect_check_cli.wait_for_service(timeout_sec=1):
             self.get_logger().warning('wait open beagle robot node')
 
         self.buzzer_publisher = self.create_publisher(
@@ -72,13 +73,14 @@ class CodingNode(Node):
                 self.cancel_motor_control()
                 break
             self.end_time = None
+        else:
+            return False
+        return True
 
     def lidar_callback(self, lidar_msg):
-        print('lidar')
-        self.lidar = lidar_msg.data
+        self.lidar_data = lidar_msg.data
 
     def camera_callback(self, camera_msg):
-        print('camera')
         self.camera = []
         i = 0
         for rects in camera_msg.rects:
@@ -124,7 +126,7 @@ class CodingNode(Node):
             self.get_logger().warning('Action goal rejected.')
             self.goal_handle = None  # 파괴된 핸들을 None으로 설정
             return
-        self.get_logger().info('Action goal accepted.')
+        # self.get_logger().info('Action goal accepted.')
         self.action_result_future = self.goal_handle.get_result_async()
         self.action_result_future.add_done_callback(
             self.motor_control_action_result)
@@ -135,12 +137,13 @@ class CodingNode(Node):
 
     def motor_control_action_result(self, future):
         if future.cancelled():
-            self.get_logger().info('future')
+            self.get_logger().warning('future canceled')
             return
         action_status = future.result().status
         self.end_time = future.result().result.end_time
         if action_status == GoalStatus.STATUS_SUCCEEDED:
-            self.get_logger().info('Action succeeded!')
+            # self.get_logger().info('Action succeeded!')
+            pass
         else:
             self.get_logger().warning(
                 'Action failed with status: {0}'.format(action_status))
@@ -148,7 +151,11 @@ class CodingNode(Node):
     def beagle_robot_check(self):
         srv_req = ConnectChecker.Request()
         srv_req.try_connect = True
-        srv_res=self.connect_check_cli.call(srv_req,timeout_sec=1)
+        srv_future=self.connect_check_cli.call_async(srv_req)
+        while not srv_future.done():
+            rclpy.spin_once(self)
+        srv_res=srv_future.result()
+
         if  srv_res is None:
             return False
         elif srv_res.connected == True:

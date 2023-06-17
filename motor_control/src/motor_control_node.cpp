@@ -16,7 +16,6 @@ MotorControl::MotorControl()
   this->declare_parameter("turn_pulse", 1900);
   *((int *)&TURN_PULSE) = this->get_parameter("turn_pulse").get_value<int>();
 
-
   auto qos_profile = rclcpp::QoS(rclcpp::KeepLast(10));
   robot_motor_client_ = this->create_client<robot_motor>("/robot_motor");
   while (!robot_motor_client_->wait_for_service(1s)) {
@@ -41,7 +40,7 @@ MotorControl::~MotorControl() {}
 rclcpp_action::GoalResponse
 MotorControl::handle_goal(const rclcpp_action::GoalUUID &uuid,
                           std::shared_ptr<const motor_control::Goal> goal) {
-  RCLCPP_WARN(this->get_logger(), "new goal");
+  // RCLCPP_WARN(this->get_logger(), "new goal");
   return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
 }
 rclcpp_action::CancelResponse MotorControl::handle_cancel(
@@ -63,12 +62,12 @@ rclcpp_action::CancelResponse MotorControl::handle_cancel(
       return rclcpp_action::CancelResponse::ACCEPT;
     }
   }
-  RCLCPP_WARN(this->get_logger(), "cancel goal");
+  // RCLCPP_WARN(this->get_logger(), "cancel goal");
   return rclcpp_action::CancelResponse::ACCEPT;
 }
 void MotorControl::motor_controling(
     const std::shared_ptr<goal_handle_motor_control> goal_handle) {
-  RCLCPP_WARN(this->get_logger(), "start goal");
+  // RCLCPP_WARN(this->get_logger(), "start goal");
   goal_handle_ = goal_handle;
   start_ = std::chrono::system_clock::now();
   action_seq_ = 1;
@@ -126,7 +125,7 @@ void MotorControl::run() {
     break;
   }
   case 3: {
-    {
+    if (goal_handle_->get_goal()->mode != -1) {
       auto robot_req = std::make_shared<robot_motor::Request>();
       robot_req->motor_l = 0;
       robot_req->motor_r = 0;
@@ -141,7 +140,6 @@ void MotorControl::run() {
                     "robot motor service failed\ncheck beagle_robot node");
         return;
       }
-      RCLCPP_INFO(this->get_logger(), "end");
     }
 
     std::chrono::milliseconds time =
@@ -161,11 +159,16 @@ void MotorControl::control() {
       std::chrono::duration_cast<std::chrono::milliseconds>(
           std::chrono::system_clock::now() - start_);
 
-  RCLCPP_WARN(this->get_logger(), "%d", a.count());
   int motor_mode = goal_handle_->get_goal()->mode;
   std::vector<float> motor_data = goal_handle_->get_goal()->data;
   auto robot_req = std::make_shared<robot_motor::Request>();
   switch (motor_mode) {
+  case -1: {
+    robot_req->motor_l = limit(motor_data[0]);
+    robot_req->motor_r = limit(motor_data[1]);
+    action_seq_ = 3;
+    break;
+  }
   case 0: {
     robot_req->motor_l = limit(motor_data[0]);
     robot_req->motor_r = limit(motor_data[1]);
@@ -177,8 +180,6 @@ void MotorControl::control() {
     std::chrono::milliseconds time =
         std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::system_clock::now() - start_);
-
-    // RCLCPP_WARN(this->get_logger(), "%d", time.count());
     action_seq_ = (time.count() / 1000.0 > motor_data[2]) ? 3 : 2;
 
     break;
@@ -222,7 +223,6 @@ void MotorControl::control() {
   motor_r_ = robot_req->motor_r;
   auto result = robot_motor_client_->async_send_request(robot_req);
 
-  RCLCPP_WARN(this->get_logger(), "a");
   // Wait for the result.
   if (rclcpp::spin_until_future_complete(node, result) ==
       rclcpp::FutureReturnCode::SUCCESS) {
@@ -233,7 +233,6 @@ void MotorControl::control() {
                 "robot motor service failed\ncheck beagle_robot node");
     return;
   }
-  RCLCPP_WARN(this->get_logger(), "b");
 
   auto feedback = std::make_shared<motor_control::Feedback>();
   feedback->encoder_l = encoder_l_;

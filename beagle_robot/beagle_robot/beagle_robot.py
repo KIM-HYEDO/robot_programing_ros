@@ -20,10 +20,12 @@ class BeagleRobot(Node):
     def __init__(self):
         super().__init__('beagle_robot')  # 노드 이름 저장
 
+        self.beagle=Beagle()
         while True:
             if self.beagle_check():
                 break
             else:
+                self.beagle=Beagle()
                 self.get_logger().warning('check connect beagle')
                 wait(1000)
 
@@ -78,6 +80,7 @@ class BeagleRobot(Node):
                     self.lidar_pub_timer = self.create_timer(
                         0.1, self.lidar_pub)
                 elif pre_lidar_use and not self.lidar_mode:
+                    self.get_logger().warning('stop lidar')
                     self.lidar_pub_timer.cancel()
                     self.beagle.stop_lidar()
         return SetParametersResult(successful=True)
@@ -91,8 +94,8 @@ class BeagleRobot(Node):
             return res
         res.connected = False
         return res
+
     def beagle_check(self):
-        self.beagle = Beagle()
         num = self.beagle.timestamp_basic()
         if num == 0:
             return False
@@ -162,11 +165,10 @@ class BeagleRobot(Node):
 def main(argv=sys.argv[1:]):
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-L', '--lidar_mode', type=str,
+    parser.add_argument('-L', '--lidar-mode', type=str,
                         default="raw", help='lidar mode set (raw, zero, trunc)')
     args, unknown = parser.parse_known_args()
     rclpy.init(args=argv)  # 초기화
-
     node = BeagleRobot()
     node.set_lidar_mode(args.lidar_mode)
     try:

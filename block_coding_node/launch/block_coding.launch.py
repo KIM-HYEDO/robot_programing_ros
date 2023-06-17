@@ -17,6 +17,9 @@ def generate_launch_description():
     lidar_use = LaunchConfiguration(
         'lidar_use',
         default=True,)
+    lidar_mode = LaunchConfiguration(
+        'lidar_use',
+        default='raw')
     print(lidar_use)
     return LaunchDescription([
         DeclareLaunchArgument(
@@ -27,6 +30,10 @@ def generate_launch_description():
             'lidar_use',
             default_value=lidar_use,
             description='Whether to use lidar'),
+        DeclareLaunchArgument(
+            'lidar_mode',
+            default_value=lidar_mode,
+            description='lidar mode (raw,zero,trunc)'),
         Node(
             package='block_coding_node',
             executable='coding_node',
@@ -45,12 +52,12 @@ def generate_launch_description():
             executable='beagle_robot',
             name='beagle_robot',
             parameters=[param_dir,{'lidar_use': LaunchConfiguration('lidar_use')}],
-            arguments=["-L", "raw"],
+            arguments=["--lidar-mode", LaunchConfiguration('lidar_mode')],
             output='screen'),
-        Node(
-            package='beagle_camera',
-            executable='camera_yolo',
-            name='camera_yolo',
-            parameters=[param_dir],
-            output='screen'),
+        # Node(
+        #     package='beagle_camera',
+        #     executable='camera_yolo',
+        #     name='camera_yolo',
+        #     parameters=[param_dir],
+        #     output='screen'),
     ])
