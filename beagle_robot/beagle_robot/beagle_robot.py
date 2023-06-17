@@ -31,10 +31,11 @@ class BeagleRobot(Node):
 
         self.declare_parameter('lidar_use', False)  # lidar 사용할 경우에만 퍼블리시
         self.lidar_use = self.get_parameter('lidar_use').value
+        self.lidar_publisher = self.create_publisher(
+            LidarData, '/lidar_data', qos_profile)
         if self.lidar_use:
-            self.lidar_publisher = self.create_publisher(
-                LidarData, '/lidar_data', qos_profile)
             self.beagle.start_lidar()
+            self.get_logger().info('ready lidar')
             self.beagle.wait_until_lidar_ready()
             self.lidar_pub_timer = self.create_timer(0.1, self.lidar_pub)
         self.add_on_set_parameters_callback(self.param_callback)
@@ -72,6 +73,7 @@ class BeagleRobot(Node):
                 self.lidar_use = param.value
                 if not pre_lidar_use and self.lidar_use:
                     self.beagle.start_lidar()
+                    self.get_logger().info('ready lidar')
                     self.beagle.wait_until_lidar_ready()
                     self.lidar_pub_timer = self.create_timer(
                         0.1, self.lidar_pub)
