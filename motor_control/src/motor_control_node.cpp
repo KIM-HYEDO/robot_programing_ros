@@ -78,7 +78,9 @@ void MotorControl::motor_controlling(
 void MotorControl::run() {
   switch (action_seq_) {
   case 1: {
-    {
+    int motor_mode = goal_handle_->get_goal()->mode;
+    std::vector<float> motor_data = goal_handle_->get_goal()->data;
+    if (motor_mode!=-1){
       auto robot_req = std::make_shared<robot_motor::Request>();
       robot_req->motor_l = 0;
       robot_req->motor_r = 0;
@@ -94,8 +96,6 @@ void MotorControl::run() {
         return;
       }
     }
-    int motor_mode = goal_handle_->get_goal()->mode;
-    std::vector<float> motor_data = goal_handle_->get_goal()->data;
     switch (motor_mode) {
     case 2: {
       if (motor_data[0] > 0) {

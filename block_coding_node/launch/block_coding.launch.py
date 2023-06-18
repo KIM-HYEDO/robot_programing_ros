@@ -27,6 +27,12 @@ def generate_launch_description():
     camera_use = LaunchConfiguration(
         'camera_use',
         default='False')
+    yolo_use = LaunchConfiguration(
+        'yolo_use',
+        default='False')
+    camera_view = LaunchConfiguration(
+        'camera_view',
+        default='False')
     launch_des = []
     launch_des.append(DeclareLaunchArgument(
         'param_dir',
@@ -44,6 +50,14 @@ def generate_launch_description():
         'camera_use',
         default_value=camera_use,
         description='Whether to use camera'))
+    launch_des.append(DeclareLaunchArgument(
+        'yolo_use',
+        default_value=yolo_use,
+        description='Whether to use yolo'))
+    launch_des.append(DeclareLaunchArgument(
+        'camera_view',
+        default_value=camera_view,
+        description='Whether to camera view'))
     launch_des.append(Node(
         package='block_coding_node',
         executable='coding_node',
@@ -69,6 +83,7 @@ def generate_launch_description():
         executable='camera_yolo',
         name='camera_yolo',
         parameters=[param_dir],
-        arguments=["--camera_use",LaunchConfiguration('camera_use')],
+        arguments=["--camera_use", LaunchConfiguration('camera_use'), "--yolo_use", LaunchConfiguration(
+            'yolo_use'), "--camera_view", LaunchConfiguration('camera_view')],
         output='screen'))
     return LaunchDescription(launch_des)
