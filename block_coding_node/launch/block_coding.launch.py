@@ -10,6 +10,7 @@ from launch_ros.actions import Node
 def str_to_bool(value):
     return value.lower() in ['true', '1', 'yes']
 
+
 def generate_launch_description():
     param_dir = LaunchConfiguration(
         'param_dir',
@@ -25,7 +26,7 @@ def generate_launch_description():
         default='raw')
     camera_use = LaunchConfiguration(
         'camera_use',
-        default=False)
+        default='False')
     launch_des = []
     launch_des.append(DeclareLaunchArgument(
         'param_dir',
@@ -61,15 +62,13 @@ def generate_launch_description():
         name='beagle_robot',
         parameters=[param_dir, {
             'lidar_use': LaunchConfiguration('lidar_use')}],
-        arguments=["--lidar-mode", LaunchConfiguration('lidar_mode')],
+        arguments=["--lidar_mode", LaunchConfiguration('lidar_mode')],
         output='screen'))
-
-    print(type(camera_use))
-    if camera_use:
-        launch_des.append(Node(
-            package='beagle_camera',
-            executable='camera_yolo',
-            name='camera_yolo',
-            parameters=[param_dir],
-            output='screen'))
+    launch_des.append(Node(
+        package='beagle_camera',
+        executable='camera_yolo',
+        name='camera_yolo',
+        parameters=[param_dir],
+        arguments=["--camera_use",LaunchConfiguration('camera_use')],
+        output='screen'))
     return LaunchDescription(launch_des)

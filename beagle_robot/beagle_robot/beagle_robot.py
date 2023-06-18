@@ -63,7 +63,7 @@ class BeagleRobot(Node):
             ConnectChecker, '/connect_checker', self.checkConnection)
 
     def set_lidar_mode(self, mode):
-        if mode == "zero" or mode == "trunc":
+        if mode == "zero" or mode == "trunc":\
             self.beagle.lidar_mode(mode)
         else:
             self.beagle.lidar_mode("raw")
@@ -165,7 +165,7 @@ class BeagleRobot(Node):
 def main(argv=sys.argv[1:]):
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-L', '--lidar-mode', type=str,
+    parser.add_argument('-L', '--lidar_mode', type=str,
                         default="raw", help='lidar mode set (raw, zero, trunc)')
     args, unknown = parser.parse_known_args()
     rclpy.init(args=argv)  # 초기화

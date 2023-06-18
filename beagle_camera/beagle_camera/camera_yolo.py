@@ -1,5 +1,7 @@
 import roboidai as ai
 import rclpy
+import sys
+import argparse
 from rclpy.node import Node
 from rclpy.qos import QoSProfile
 from beagle_msgs.msg import CameraDetection, Rect
@@ -38,8 +40,15 @@ class camera_yolo(Node):
         key = self.cam.check_key()
 
 
-def main(args=None):
-    rclpy.init(args=args)
+def main(argv=sys.argv[1:]):
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('-C', '--camera_use', type=str,
+                        default='False', help='lidar mode set (raw, zero, trunc)')
+    args, unknown = parser.parse_known_args()
+    if not args.camera_use=='True':
+        return
+    rclpy.init(args=argv)  # 초기화
     node = camera_yolo()
     try:
         rclpy.spin(node)
